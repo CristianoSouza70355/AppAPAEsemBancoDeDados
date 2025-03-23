@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>APAE - Relatórios de Presença</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        /* Mantendo o mesmo estilo da página principal */
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        .form-group {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        input {
+            padding: 10px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 200px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .presente {
+            background-color: #d4edda;
+        }
+        .ausente {
+            background-color: #f8d7da;
+        }
+        .filtros {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .btn-pdf {
+            background-color: #dc3545;
+        }
+        .btn-voltar {
+            background-color: #6c757d;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <h1>Relatório de Presenças - APAE</h1>
+
+    <div class="form-group">
+        <div class="filtros">
+            <input type="date" id="dataInicio" placeholder="Data Início">
+            <input type="date" id="dataFim" placeholder="Data Fim">
+            <input type="text" id="pesquisaAluno" placeholder="Nome do Aluno">
+            <button onclick="filtrarRelatorio()">Filtrar</button>
+            <button class="btn-pdf" onclick="gerarPDF()">Gerar PDF</button>
+            <button class="btn-voltar" onclick="window.location.href='index.html'">Voltar</button>
+        </div>
+    </div>
+
+    <div id="relatorio" class="form-group">
+        <table>
+            <thead>
+                <tr>
+                    <th>Aluno</th>
+                    <th>Matrícula</th>
+                    <th>Data</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="dadosRelatorio"></tbody>
+        </table>
+    </div>
+
+    <script>
+        let alunos = JSON.parse(localStorage.getItem('alunos')) || [];
+        
+        window.onload = function() {
+            const hoje = new Date();
+            document.getElementById('dataInicio').valueAsDate = hoje;
+            document.getElementById('dataFim').valueAsDate = hoje;
+            filtrarRelatorio();
+        };
+
+        function filtrarRelatorio() {
+            const dataInicio = document.getElementById('dataInicio').value;
+            const dataFim = document.getElementById('dataFim').value;
+            const pesquisa = document.getElementById('pesquisaAluno').value.toLowerCase();
+            const tbody = document.getElementById('dadosRelatorio');
+            tbody.innerHTML = '';
+
+            alunos.forEach(aluno => {
+                if (aluno.nome.toLowerCase().includes(pesquisa)) {
+                    for (let data in aluno.presencas) {
+                        if (data >= dataInicio && data <= dataFim) {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = `
+                                <td>${aluno.nome}</td>
+                                <td>${aluno.matricula}</td>
+                                <td>${formatarData(data)}</td>
+                                <td class="${aluno.presencas[data]}">${aluno.presencas[data]}</td>
+                            `;
+                            tbody.appendChild(tr);
+                        }
+                    }
+                }
+            });
+        }
+
+        function formatarData(data) {
+            return new Date(data).toLocaleDateString('pt-BR');
+        }
+
+        function gerarPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            doc.setFont("helvetica");
+            doc.setFontSize(16);
+            doc.text("Relatório de Presenças - APAE", 105, 20, { align: "center" });
+            
+            const dataInicio = document.getElementById('dataInicio').value;
+            const dataFim = document.getElementById('dataFim').value;
+            doc.setFontSize(12);
+            doc.text(`Período: ${formatarData(dataInicio)} a ${formatarData(dataFim)}`, 20, 30);
+
+            let y = 40;
+            const linhas = document.querySelectorAll('#dadosRelatorio tr');
+            
+            doc.setFontSize(10);
+            linhas.forEach(linha => {
+                const colunas = linha.querySelectorAll('td');
+                doc.text(colunas[0].textContent, 20, y);
+                doc.text(colunas[1].textContent, 80, y);
+                doc.text(colunas[2].textContent, 120, y);
+                doc.text(colunas[3].textContent, 160, y);
+                y += 10;
+
+                if (y >= 280) {
+                    doc.addPage();
+                    y = 20;
+                }
+            });
+
+            const dataAtual = new Date().toLocaleDateString('pt-BR');
+            doc.save(`relatorio-presenca-${dataAtual}.pdf`);
+        }
+    </script>
+</body>
+</html>
